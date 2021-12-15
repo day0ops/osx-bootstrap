@@ -387,12 +387,16 @@ if [[ "$?" -eq 0 ]]; then
     log_warn "GitHub SSH key $GITHUB_SSH_KEY already exists ..."
   else
     echo ''
+    echo '#### Please enter your name: '
+    read github_name
     echo '#### Please enter your GitHub username: '
     read github_user
     echo '#### Please enter your GitHub email address: '
     read github_email
     echo '#### Please enter your GitHub token: '
     read github_token
+    echo '#### Please enter your GPG key: '
+    read gpg_key_id
 
     if [[ $github_user && $github_email ]]; then
       log_info "Generating a GitHub SSH key ..."
@@ -400,13 +404,18 @@ if [[ "$?" -eq 0 ]]; then
       eval "$(ssh-agent -s)"
 
       log_info "Generating GitHub configuration"
-      git config --global user.name "$github_user"
+      git config --global user.name "$github_name"
+      git config --global user.username "$github_user"
       git config --global user.email "$github_email"
       git config --global github.user "$github_user"
       git config --global github.token "$github_token"
       git config --global color.ui true
       git config --global push.default current
       git config --global tag.sort version:refname
+      if [[ -z "${gpg_key_id}" ]]; then
+        git config --global user.signingkey "$gpg_key_id"
+        git config --global commit.gpgsign true
+      fi
 
       cat $SSH_CONFIG > /dev/null
       check_ssh_config_file=$?

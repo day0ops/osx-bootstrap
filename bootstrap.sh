@@ -377,12 +377,14 @@ if [[ "$?" -eq 0 ]]; then
   sudo spctl --status
 fi
 
-confirm "Would you like to setup the Github SSH authentication"
+confirm "Would you like to setup the GitHub SSH authentication"
 if [[ "$?" -eq 0 ]]; then
-  # Setup Github specific key
+  # Setup GitHub specific key
   GITHUB_SSH_KEY=$HOME/.ssh/github_id_rsa
+  GITHUB_SSH_PUB_KEY=$HOME/.ssh/github_id_rsa.pub
+  SSH_CONFIG=$HOME/.ssh/config
   if [[ -f "$GITHUB_SSH_KEY" ]]; then
-    log_warn "GitHub SSH key $GITHUB_SSH_KEY exists ..."
+    log_warn "GitHub SSH key $GITHUB_SSH_KEY already exists ..."
   else
     echo ''
     echo '#### Please enter your GitHub username: '
@@ -393,6 +395,11 @@ if [[ "$?" -eq 0 ]]; then
     read github_token
 
     if [[ $github_user && $github_email ]]; then
+      log_info "Generating a GitHub SSH key ..."
+      sudo ssh-keygen -t ed25519 -C "$github_email" -f $GITHUB_SSH_KEY
+      eval "$(ssh-agent -s)"
+
+      log_info "Generating GitHub configuration"
       git config --global user.name "$github_user"
       git config --global user.email "$github_email"
       git config --global github.user "$github_user"
@@ -401,21 +408,49 @@ if [[ "$?" -eq 0 ]]; then
       git config --global push.default current
       git config --global tag.sort version:refname
 
-      ## Set RSA key
-      curl -s -O http://github-media-downloads.s3.amazonaws.com/osx/git-credential-osxkeychain
-      chmod u+x git-credential-osxkeychain
-      sudo mv git-credential-osxkeychain "$(dirname $(which git))/git-credential-osxkeychain"
-      git config --global credential.helper osxkeychain
+      cat $SSH_CONFIG > /dev/null
+      check_ssh_config_file=$?
+      if [ ${check_ssh_config_file} == 0 ]; then
+        log_info "Adding another configuration to $SSH_CONFIG"
+      else
+        log_warn "You do not have an SSH config file yet"
+        log_info "Lets create a SSH config file"
+        touch $SSH_CONFIG
+      fi
 
-      log_info "Generating a GitHub SSH key ..."
-      sudo ssh-keygen -b 2048 -t rsa -C "$github_email" -f $GITHUB_SSH_KEY
+      read -p "Enter the host name alias for GitHub: " github_alias
+      github_alias=${github_alias}
+      grep -q ${github_alias} $HOME/.ssh/config
+      check_github_alias=$?
+      while [ ${check_github_alias} == 0 ]; do
+        read -p "Enter the host name alias for GitHub (It must be new): " github_alias
+        github_alias=${github_alias}
+        grep -q ${github_alias} $SSH_CONFIG
+        check_github_alias=$?
+      done
+
+      log_info "The following will be added to your ssh config file:"
+      echo -e "Host ${github_alias}\nHostName github.com\nUser git\n"
+      confirm "Is this information correct ?"
+      if [[ "$?" -eq 0 ]]; then
+        cp $SSH_CONFIG "${SSH_CONFIG}_backup_"$(date +"%Y-%m-%d-%s")
+        echo -en '\n' >> $SSH_CONFIG
+        echo "Host ${github_alias}" >> $SSH_CONFIG
+        echo -e "\tHostName github.com" >> $SSH_CONFIG
+        echo -e "\tUser git" >> $SSH_CONFIG
+        echo -e "\IdentityFile ${GITHUB_SSH_KEY}" >> $SSH_CONFIG
+        echo -e "\tAddKeysToAgent yes" >> $SSH_CONFIG
+        echo -e "\tIdentitiesOnly yes" >> $SSH_CONFIG
+        log_info "New host added to ssh config!"
+      fi
 
       log_info "\nPlease add this public key (in clipboard) to GitHub"
-      pbcopy < $HOME/.ssh/github_id_rsa.pub
-      cat $HOME/.ssh/github_id_rsa.pub
+      pbcopy < $GITHUB_SSH_PUB_KEY
+      cat $GITHUB_SSH_PUB_KEY
       log_info "Follow step 4 to complete: https://help.github.com/articles/generating-ssh-keys"
       prompt "continue after setting up GitHub"
-      ## Test SSH to GitHub
+      chmod 400 $GITHUB_SSH_KEY
+      # Test SSH to GitHub
       ssh -T git@github.com
     fi
   fi

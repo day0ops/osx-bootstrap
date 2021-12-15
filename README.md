@@ -1,6 +1,6 @@
 # Bootstrap Mac OS X
 
-This project bootstraps a new Mac OS X with a development environment in `iTerm2`. This has been tested in BigSur.
+This project bootstraps a new Mac OS X with a development environment in `iTerm2`. This has been tested in BigSur & Monterey.
 
 ## Prerequisites
 

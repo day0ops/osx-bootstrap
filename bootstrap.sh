@@ -5,32 +5,38 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 BREW_CASK_DEFAULT_APP_DIR=/Applications
 BREW_CASK_APP_DIR=/Applications/Development
 
-DEFAULT_GO_VERSION="1.17.5"
-DEFAULT_PYTHON_VERSION="3.10.1"
-DEFAULT_RUBY_VERSION="3.0.3"
-DEFAULT_NODE_VERSION="16.13.1"
-DEFAULT_BAZEL_VERSION="3.6.0"
+DEFAULT_GO_VERSION="1.22.1"
+DEFAULT_PYTHON_VERSION="3.12.2"
+DEFAULT_RUBY_VERSION="3.3.0"
+DEFAULT_NODE_VERSION="20.11.1"
 
 DEFAULT_GCLOUD_PATH="/usr/share/google-cloud-sdk"
 
 core_utility_casks=(
-  authy
+
 )
 
 core_dev_casks=(
-  visual-studio-code
-  postman
-  virtualbox
+  # The apps below are encouraged to install outside of casks
+  # visual-studio-code
+  # postman
+  # virtualbox
+  # vagrant
 )
 
 casks=(
-  adoptopenjdk{8,11}
   google-cloud-sdk
-  vagrant
+  # Install jdk8
+  temurin8
+  # Install jdk11
+  temurin11
+  # Install latest jdk
+  temurin21
 )
 
 prereq_brews=(
   asdf
+  aws-iam-authenticator
   awscli
   azure-cli
   fd
@@ -38,10 +44,12 @@ prereq_brews=(
   git
   git-extras
   go
+  gh
   gpg
   jenv
   pyenv
   svn
+  terminal-notifier
   wget
   zsh
   zsh-autosuggestions
@@ -52,7 +60,9 @@ prereq_brews=(
 gnu_brews=(
   autoconf
   bash
+  bazelisk
   binutils
+  cfssl
   coreutils
   diffutils
   ed 
@@ -78,12 +88,17 @@ gnu_brews=(
 
 brews=(
   ansible
+  argocd
+  dnsmasq
   fortio
+  k6
   k9s
   krew
   kind
   kops
   kubectl
+  kubectx
+  kustomize
   glooctl
   gnupg
   gradle
@@ -91,14 +106,17 @@ brews=(
   hey
   httpie
   jq
+  lima
   maven
   mitmproxy
   openssl
+  packer
   skaffold
-  spotify-tui
-  spotifyd
+  stern
   terraform
+  vault
   weaveworks/tap/eksctl
+  yq
 )
 
 set +e
@@ -178,53 +196,59 @@ function omz_reload {
 }
 
 function omz_installer {
+  pushd $SCRIPT_DIR
+
   if [[ -f "$HOME/.zshrc" ]]; then
-    mv -n $HOME/.zshrc $HOME/.zshrc-backup-$(date +"%Y-%m-%d-%s") &> /dev/null
+    local backup_file=".zshrc-backup-$(date +"%Y-%m-%d-%s")"
+    mv -n $HOME/.zshrc $HOME/$backup_file &> /dev/null
     if [[ $? -eq 0 ]]; then
-      log_info "Backed up the current .zshrc to .zshrc-backup-$(date +"%Y-%m-%d-%s")"
+      log_info "Backed up the current .zshrc to $backup_file"
     fi
   fi
 
   if [[ -d $HOME/.oh-my-zsh ]]; then
-      log_warn "oh-my-zsh is already installed"
+    log_warn "oh-my-zsh is already installed"
   else
-      log_info "Installing oh-my-zsh"
-      git clone --depth=1 git://github.com/robbyrussell/oh-my-zsh.git $HOME/.oh-my-zsh
+    log_info "Installing oh-my-zsh"
+    git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git $HOME/.oh-my-zsh
   fi
 
   if [[ -d $HOME/.oh-my-zsh/custom/themes/powerlevel10k ]]; then
     log_warn "powerlevel10k is already installed, updating to latest"
     cd $HOME/.oh-my-zsh/custom/themes/powerlevel10k && git pull
   else
-      log_info "Installing powerlevel10k"
-      git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $HOME/.oh-my-zsh/custom/themes/powerlevel10k
+    log_info "Installing powerlevel10k"
+    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $HOME/.oh-my-zsh/custom/themes/powerlevel10k
   fi
 
   log_info "Deploying latest zshrc and p10k.zsh"
   cp -f $SCRIPT_DIR/oh-my-zsh-theme/.zshrc $HOME/.
   cp -f $SCRIPT_DIR/oh-my-zsh-theme/.p10k.zsh $HOME/.
 
-  cd $HOME/.oh-my-zsh
-  if sudo chsh -s $(which zsh) && sh -c "$HOME/.oh-my-zsh/tools/upgrade.sh"; then
-      log_info "Installation Successful"
-  else
-      log_error "Something is wrong, exiting"
-      exit 1
+  if [[ -d $HOME/.oh-my-zsh/custom/plugins ]]; then
+    log_info "Installing kube-aliases plugin"
+    git clone https://github.com/Dbz/kube-aliases.git $HOME/.oh-my-zsh/custom/plugins/kube-aliases
   fi
-
-  cd $SCRIPT_DIR
 
   brew install --cask font-source-code-pro
 
+  if sudo chsh -s $(which zsh) && cd "$HOME/.oh-my-zsh" && sh -c "$HOME/.oh-my-zsh/tools/upgrade.sh"; then
+    log_info "Installation Successful"
+  else
+    log_error "Something is wrong, exiting"
+    exit 1
+  fi
+
   omz_reload
 
+  popd
 }
 
 log_info "==================================="
-log_info "Bootstrapping OS X"
+log_info "Bootstrapping OS X 🖥️"
 log_info "==================================="
-log_info "Starting .... this process takes a while so grab a coffee :)"
-log_info "You may be asked for your password (for sudo)."
+log_info "Starting .... this process takes a while so grab a ☕"
+log_info "You may be asked for sudo password."
 
 # Deal with SSH key generation
 mkdir -p $HOME/.ssh
@@ -256,11 +280,6 @@ else
 fi
 
 brew tap homebrew/cask-versions
-# cask-versions already includes jdk8 tap so remove the duplicate
-if [[ -f /usr/local/Homebrew/Library/Taps/homebrew/homebrew-cask-versions/Casks/adoptopenjdk8.rb ]]; then
-  rm -f /usr/local/Homebrew/Library/Taps/homebrew/homebrew-cask-versions/Casks/adoptopenjdk8.rb
-fi
-brew tap adoptopenjdk/openjdk
 brew tap homebrew/cask-fonts
 brew tap weaveworks/tap
 
@@ -279,24 +298,26 @@ install 'brew_install_or_upgrade' "${prereq_brews[@]}"
 log_info "Installing gnu packages"
 install 'brew_install_or_upgrade' "${gnu_brews[@]}"
 
+log_info "Installing remaining packages"
+install 'brew_install_or_upgrade' "${brews[@]}"
+
 # oh my zsh
 omz_installer
 
-# Install g and Golang
-if command -v "ggovm" >/dev/null; then
-  log_warn "g (Golang Version Manager) is already installed"
+# Install gvm and Golang
+if command -v "gvm" >/dev/null; then
+  log_warn "gvm (Golang Version Manager) is already installed"
 else
-  log_info "Installing g"
-  curl -sSL https://git.io/g-install | sh -s -- -y
+  log_info "Installing gvm"
+  /bin/bash < <(curl -sSL https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer)
   omz_reload
 fi
-
-if [[ $(ggovm list | grep '>' > /dev/null) ]]; then
-  log_warn "g is already managing Go"
+if [[ $(gvm list | grep '=> go' > /dev/null) ]]; then
+  log_warn "gvm is already managing Go"
 else
-  log_info "Installing Go $DEFAULT_GO_VERSION"
-  ggovm install $DEFAULT_GO_VERSION
-  ggovm set $DEFAULT_GO_VERSION
+  log_info "Installing Go ${DEFAULT_GO_VERSION}"
+  gvm install "go${DEFAULT_GO_VERSION}"
+  gvm use "go${DEFAULT_GO_VERSION}" --default
 fi
 
 # Install and set Python
@@ -315,9 +336,11 @@ else
   log_info "Setting up Java"
   jenv enable-plugin export
   jenv enable-plugin maven
-  jenv add /Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home
-  jenv add /Library/Java/JavaVirtualMachines/adoptopenjdk-11.jdk/Contents/Home
-  jenv global 11
+  # Believe it or not some apps are still reliant on java 8/11
+  jenv add /Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home
+  jenv add /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home
+  jenv add /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home
+  jenv global 21
 fi
 
 # Install rvm and Ruby
@@ -332,8 +355,8 @@ fi
 if rvm list strings | grep ruby- > /dev/null; then
   log_warn "rvm is already managing Ruby"
 else
-  log_info "Installing Ruby $DEFAULT_RUBY_VERSION"
-  rvm --default install "$DEFAULT_RUBY_VERSION"
+  log_info "Installing Ruby ${DEFAULT_RUBY_VERSION}"
+  rvm --default install "${DEFAULT_RUBY_VERSION}"
 fi
 
 # Install nvm
@@ -341,16 +364,22 @@ if command -v "nvm" > /dev/null; then
   log_warn "nvm is already installed"
 else
   log_info "Installing nvm"
-  /bin/bash < <(curl -sSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh)
-  . $HOME/.nvm/nvm.sh
+  /bin/bash < <(curl -sSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh)
+  . "$HOME/.nvm/nvm.sh"
 fi
 if [[ $(nvm current) == "none" ]]; then
   nvm install "v${DEFAULT_NODE_VERSION}"
   nvm alias default "v${DEFAULT_NODE_VERSION}"
 fi
 
-log_info "Installing remaining packages"
-install 'brew_install_or_upgrade' "${brews[@]}"
+# Install Rust and Cargo
+if command -v "rustup" > /dev/null; then
+  log_warn "Rust is already installed"
+else
+  log_info "Installing Rust"
+  curl -sSL https://sh.rustup.rs | sh -s -- -y --profile minimal
+  . "$HOME/.cargo/env"
+fi
 
 # Updating Google Cloud SDK
 if command -v gcloud > /dev/null; then
@@ -364,18 +393,24 @@ brew cleanup
 # Disable last login
 touch ~/.hushlogin
 
+# Setup vim
+if [[ -f "$HOME/.vimrc" ]]; then
+  local backup_file=".vimrc-backup-$(date +"%Y-%m-%d-%s")"
+  mv -n $HOME/.vimrc $HOME/$backup_file &> /dev/null
+  if [[ $? -eq 0 ]]; then
+    log_info "Backed up the current .vimrc to $backup_file"
+  fi
+
+  cp -f $SCRIPT_DIR/.vimrc $HOME/.
+  # Plugin management
+  curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
+    https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+fi
+
 # Install asdf plugins
 asdf plugin-add istioctl
-asdf plugin-add bazel https://github.com/mrinalwadhwa/asdf-bazel.git
 asdf install istioctl latest
-asdf install bazel $DEFAULT_BAZEL_VERSION
-
-# Disable Gatekeeper
-confirm "Disable Gatekeeper (WARNING: any malicious app can be installed) ?"
-if [[ "$?" -eq 0 ]]; then
-  sudo spctl --master-disable
-  sudo spctl --status
-fi
+asdf global istioctl latest
 
 confirm "Would you like to setup the GitHub SSH authentication"
 if [[ "$?" -eq 0 ]]; then
@@ -393,8 +428,6 @@ if [[ "$?" -eq 0 ]]; then
     read github_user
     echo '#### Please enter your GitHub email address: '
     read github_email
-    echo '#### Please enter your GitHub token: '
-    read github_token
     echo '#### Please enter your GPG key: '
     read gpg_key_id
 
@@ -408,7 +441,6 @@ if [[ "$?" -eq 0 ]]; then
       git config --global user.username "$github_user"
       git config --global user.email "$github_email"
       git config --global github.user "$github_user"
-      git config --global github.token "$github_token"
       git config --global color.ui true
       git config --global push.default current
       git config --global tag.sort version:refname
@@ -465,25 +497,4 @@ if [[ "$?" -eq 0 ]]; then
   fi
 fi
 
-if [[ -f "$HOME/.zshrc" && ($(grep -e "{GLOO_EDGE_LICENSE_KEY}" -e "{GLOO_MESH_LICENSE_KEY}" -e "{GLOO_MESH_GATEWAY_LICENSE_KEY}" "$HOME/.zshrc")) ]]; then
-  confirm "Would you like to update solo.io licenses ?"
-  if [[ "$?" -eq 0 ]]; then
-    if [[ $(grep "{GLOO_EDGE_LICENSE_KEY}" "$HOME/.zshrc") ]]; then
-      echo '#### Enter your Gloo Edge Enterprise license: '
-      read ge_license
-      sed -in "s/{GLOO_EDGE_LICENSE_KEY}/$ge_license/g" "$HOME/.zshrc"   
-    fi
-    if [[ $(grep "{GLOO_MESH_LICENSE_KEY}" "$HOME/.zshrc") ]]; then
-      echo '#### Enter your Gloo Mesh Enterprise license: '
-      read gm_license
-      sed -in "s/{GLOO_MESH_LICENSE_KEY}/$gm_license/g" "$HOME/.zshrc"
-    fi
-    if [[ $(grep "{GLOO_MESH_GATEWAY_LICENSE_KEY}" "$HOME/.zshrc") ]]; then
-      echo '#### Enter your Gloo Mesh Gateway license: '
-      read gmg_license
-      sed -in "s/{GLOO_MESH_GATEWAY_LICENSE_KEY}/$gmg_license/g" "$HOME/.zshrc"
-    fi
-  fi
-fi
-
-log_info "Bootstrapping successfully finished - Make sure to reload the terminal"
+log_info "🎉 Bootstrapping successfully finished - Make sure to reload the terminal 🎉"

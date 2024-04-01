@@ -1,6 +1,6 @@
-# Bootstrap Mac OS X
+# Bootstrap macOS Development Environment
 
-This project bootstraps a new Mac OS X with a development environment in `iTerm2`. This has been tested in BigSur & Monterey.
+This project bootstraps a new Mac OS X encourages the use of `iTerm2` as the terminal. This has been tested in all the latest macOS versions including Sonoma.
 
 ## Prerequisites
 
@@ -10,8 +10,8 @@ List of required tools for this to work,
 
 ## Instructions
 
-1. Import `iterm2_dev.json` profile. You have to install SourceCodePro font.
-2. Execute `./bootstrap.sh`
+1. Execute `./bootstrap.sh`
+2. Import `iterm2_developer_profile.json` profile and set it as the default.
 
 ## Nice To Have Apps
 

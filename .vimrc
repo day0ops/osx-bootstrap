@@ -1,19 +1,66 @@
+" Options
 syntax on
-set autoindent
-set number
-set ruler
-set colorcolumn=80" show tabs
-set list
-set listchars=tab:\|_set ttyfast
-set mouse=a
-set ttymouse=xterm2set backspace=2 " make backspace work like most other apps
-set backspace=indent,eol,start" highlight unwanted spaces like trailing spaces, spaces before tab, tabs
-" that aren't at the start of a line.
-" (adopted from https://vim.fandom.com/wiki/Highlight_unwanted_spaces)
-highlight ExtraWhitespace ctermbg=red guibg=red
-match ExtraWhitespace /\s\+$\| \+\ze\t/
-match ExtraWhitespace /[^\t]\zs\t\+/
-autocmd BufWinEnter * match ExtraWhitespace /\s\+$/
-autocmd InsertEnter * match ExtraWhitespace /\s\+\%#\@<!$/
-autocmd InsertLeave * match ExtraWhitespace /\s\+$/
-autocmd BufWinLeave * call clearmatches()
+set encoding=utf8
+set clipboard=unnamedplus " Enables the clipboard between Vim/Neovim and other applications.
+set completeopt=noinsert,menuone,noselect " Modifies the auto-complete menu to behave more like an IDE.
+set cursorline " Highlights the current line in the editor
+set hidden " Hide unused buffers
+set autoindent " Indent a new line
+set mouse=a " Allow to use the mouse in the editor
+set number " Shows the line numbers
+set splitbelow splitright " Change the split screen behavior
+set title " Show file title
+set wildmenu " Show a more advance menu
+set guifont=hack_nerd_font:h11
+"set cc=100 " Show at 80 column a border for good code style                      
+filetype plugin indent on   " Allow auto-indenting depending on file type
+set spell " enable spell check (may need to download language package)
+set ttyfast " Speed up scrolling in Vim`:wq
+
+let g:kite_supported_languages = ['python', 'javascript']
+
+call plug#begin('~/.vim/plugged')
+Plug 'morhetz/gruvbox'
+Plug 'vim-airline/vim-airline'
+Plug 'vim-airline/vim-airline-themes'
+Plug 'ryanoasis/vim-devicons'
+Plug 'scrooloose/nerdcommenter'
+Plug 'sheerun/vim-polyglot'
+Plug 'jiangmiao/auto-pairs'
+Plug 'neoclide/coc.nvim', {'branch': 'release'}
+Plug 'tpope/vim-fugitive'
+Plug 'davidhalter/jedi-vim'
+Plug 'vim-scripts/indentpython.vim'
+Plug 'Xuyuanp/nerdtree-git-plugin'
+Plug 'tiagofumo/vim-nerdtree-syntax-highlight'
+Plug 'PhilRunninger/nerdtree-visual-selection'
+" Shorthand notation; fetches https://github.com/junegunn/vim-easy-align
+Plug 'junegunn/vim-easy-align'
+" Any valid git URL is allowed
+Plug 'https://github.com/junegunn/vim-github-dashboard.git'
+" Multiple Plug commands can be written in a single line using | separators
+Plug 'SirVer/ultisnips' | Plug 'honza/vim-snippets'
+" On-demand loading
+Plug 'scrooloose/nerdtree', { 'on':  'NERDTreeToggle' }
+Plug 'tpope/vim-fireplace', { 'for': 'clojure' }
+call plug#end()
+
+"colorscheme gruvbox
+let g:bargreybars_auto=0
+let g:airline_solorized_bg='dark'
+let g:airline_powerline_fonts=1
+let g:airline#extension#tabline#enable=1
+let g:airline#extension#tabline#left_sep=' '
+let g:airline#extension#tabline#left_alt_sep='|'
+let g:airline#extension#tabline#formatter='unique_tail'
+let NERDTreeQuitOnOpen=1
+
+let g:WebDevIconsUnicodeDecorateFolderNodes = 1
+let g:WebDevIconsUnicodeDecorateFolderNodeDefaultSymbol = '#'
+let g:WebDevIconsUnicodeDecorateFileNodesExtensionSymbols = {}
+let g:WebDevIconsUnicodeDecorateFileNodesExtensionSymbols['nerdtree'] = '#'
+
+
+autocmd vimenter * NERDTree
+autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
+map <C-n> :NERDTreeToggle<CR>

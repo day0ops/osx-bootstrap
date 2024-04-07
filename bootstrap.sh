@@ -69,6 +69,7 @@ gnu_brews=(
   findutils
   flex
   gawk
+  gnu-getopt
   gnu-indent
   gnu-sed
   gnu-tar

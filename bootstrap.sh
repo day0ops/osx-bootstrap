@@ -27,11 +27,11 @@ core_dev_casks=(
 casks=(
   google-cloud-sdk
   # Install jdk8
-  temurin8
+  temurin@8
   # Install jdk11
-  temurin11
+  temurin@11
   # Install latest jdk
-  temurin21
+  temurin@21
 )
 
 prereq_brews=(
@@ -51,6 +51,7 @@ prereq_brews=(
   svn
   terminal-notifier
   wget
+  vim
   zsh
   zsh-autosuggestions
   zsh-history-substring-search
@@ -112,9 +113,11 @@ brews=(
   mitmproxy
   openssl
   packer
+  podman
   skaffold
   stern
   terraform
+  upx
   vault
   weaveworks/tap/eksctl
   yq
